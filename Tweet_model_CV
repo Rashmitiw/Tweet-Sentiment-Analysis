@@ -1,0 +1,56 @@
+library(tm)
+library(SnowballC)
+library(caTools)
+#install.packages("e1071")
+library(e1071)
+library(caret)
+library(gmodels)
+library(pROC)
+library(ROCR)
+library(randomForest)
+#install.packages("wordcloud")
+library(wordcloud)
+
+####Partition in train and test
+
+ind<-createDataPartition(tweetsS$label,p=0.86,list = FALSE)
+tweet_dtm_train<-tweetsS[ind,]
+tweet_dtm_test<-tweetsS[-ind,]
+str(tweet_dtm_train)
+
+
+
+####Cross validation control
+Control<-trainControl(method="cv",number=10)
+
+#####Random Forest
+#is.na(tweet_dtm_train$label)
+#train model with 10 k fold cross validation
+tweet_RF_Model<-train(label~.,data=tweet_dtm_train,method="rf", parms = list(split = "information"),trControl=Control,na.action = na.roughfix)
+
+####train model with out 10 k fold cross validation
+
+#TRAIN model 
+##tweet_RF_Model <- randomForest(label~ . , data = tweet_dtm_train,na.action = na.roughfix)
+
+#Predict result using model
+
+predict_tweet_RF <- predict(tweet_RF_Model, newdata = tweet_dtm_test)
+
+#Cross table
+CrossTable(predict_tweet_RF,tweet_dtm_test$label,prop.chisq = FALSE,prop.t = FALSE,prop.r=FALSE,dnn=c('predicted','actual'))
+
+#predicting result in probability for cal AUC
+
+PredictionRF<-predict(tweet_RF_Model,tweet_dtm_test,type = "prob")
+head(PredictionRF)
+
+###AUC score
+
+auc<-auc(tweet_dtm_test$label,PredictionRF[,2])
+auc
+
+####Confusion Matrix
+
+confusionMatrix(predict_tweet_RF,tweet_dtm_test$label)
+
